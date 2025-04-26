@@ -1,0 +1,32 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - npm ci
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: dist
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
+      - dist/**/*
+
+test:
+  phases:
+    preTest:
+      commands:
+        - npm ci
+        - npm install -g pm2
+    test:
+      commands:
+        - npm run test
+  artifacts:
+    baseDirectory: coverage
+    files:
+      - '**/*'
+    configFilePath: '**/coverage-final.json' 
