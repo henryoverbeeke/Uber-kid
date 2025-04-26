@@ -1,55 +1,77 @@
 import { AppBar, Toolbar, Button, Box, Typography } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
-function Navbar({ isEmployee, isAdmin, setIsEmployee, setIsAdmin }) {
+function Navbar() {
+  const { isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    setIsEmployee(false);
-    setIsAdmin(false);
+    logout();
     navigate('/');
   };
 
-  const handleAdminClick = () => {
-    if (!isAdmin && isEmployee) {
-      const adminCode = prompt('Enter admin code:');
-      if (adminCode === 'ss5932') {
-        setIsAdmin(true);
-        navigate('/admin');
-      } else {
-        alert('Invalid admin code');
-      }
-    } else {
-      navigate('/admin');
-    }
-  };
-
   return (
-    <AppBar position="static" sx={{ mb: 2 }}>
+    <AppBar position="static">
       <Toolbar>
         <Box sx={{ flexGrow: 1 }}>
-          <Button color="inherit" onClick={() => navigate('/')}>
-            Customer
+          <Button
+            color="inherit"
+            component={RouterLink}
+            to="/"
+          >
+            Home
           </Button>
-          {(isEmployee || isAdmin) && (
-            <Button color="inherit" onClick={() => navigate('/employee')}>
+        </Box>
+
+        {isAuthenticated.role ? (
+          <>
+            <Typography variant="subtitle1" sx={{ mr: 2 }}>
+              {isAuthenticated.role === 'admin' ? 'Admin' : 'Employee'}
+            </Typography>
+            <Button
+              color="inherit"
+              component={RouterLink}
+              to={isAuthenticated.role === 'admin' ? '/admin' : '/employee'}
+              sx={{ mr: 1 }}
+            >
+              Dashboard
+            </Button>
+            {isAuthenticated.role === 'employee' && (
+              <Button
+                color="inherit"
+                component={RouterLink}
+                to="/admin-login"
+                sx={{ mr: 1 }}
+              >
+                Admin Access
+              </Button>
+            )}
+            <Button
+              color="inherit"
+              onClick={handleLogout}
+            >
+              Logout
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              color="inherit"
+              component={RouterLink}
+              to="/employee-login"
+              sx={{ mr: 1 }}
+            >
               Employee
             </Button>
-          )}
-          {(isEmployee || isAdmin) && (
-            <Button color="inherit" onClick={handleAdminClick}>
+            <Button
+              color="inherit"
+              component={RouterLink}
+              to="/admin-login"
+            >
               Admin
             </Button>
-          )}
-        </Box>
-        {(isEmployee || isAdmin) ? (
-          <Button color="inherit" onClick={handleLogout}>
-            Logout
-          </Button>
-        ) : (
-          <Button color="inherit" onClick={() => navigate('/login')}>
-            Staff Login
-          </Button>
+          </>
         )}
       </Toolbar>
     </AppBar>

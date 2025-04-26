@@ -12,17 +12,24 @@ import {
   MenuItem,
   IconButton,
   ButtonBase,
+  Alert,
+  Button,
 } from '@mui/material';
-import { Notifications, Delete } from '@mui/icons-material';
+import { Notifications, Delete, CheckCircle } from '@mui/icons-material';
 import { orderingTable, messageTable } from '../config/airtable';
 import CenteredLayout from '../components/CenteredLayout';
 
 function EmployeePage() {
   const [orders, setOrders] = useState([]);
+  const [messages, setMessages] = useState([]);
 
   useEffect(() => {
-    fetchOrders();
-    const interval = setInterval(fetchOrders, 5000);
+    const initializeData = async () => {
+      await Promise.all([fetchOrders(), fetchMessages()]);
+    };
+
+    initializeData();
+    const interval = setInterval(initializeData, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -41,6 +48,23 @@ function EmployeePage() {
       })));
     } catch (error) {
       console.error('Error fetching orders:', error);
+    }
+  };
+
+  const fetchMessages = async () => {
+    try {
+      const records = await messageTable.select({
+        sort: [{ field: 'createdTime', direction: 'desc' }]
+      }).firstPage();
+      
+      setMessages(records.map(record => ({
+        id: record.id,
+        title: record.fields.Title,
+        message: record.fields.message,
+        acknowledged: record.fields.acknowledged || false
+      })));
+    } catch (error) {
+      console.error('Error fetching messages:', error);
     }
   };
 
@@ -82,8 +106,51 @@ function EmployeePage() {
     }
   };
 
+  const handleAcknowledgeMessage = async (messageId) => {
+    try {
+      await messageTable.update(messageId, {
+        acknowledged: true
+      });
+      await fetchMessages();
+    } catch (error) {
+      console.error('Error acknowledging message:', error);
+    }
+  };
+
   return (
     <CenteredLayout>
+      {/* Pinned Messages Section */}
+      {messages.filter(msg => !msg.acknowledged).map((msg) => (
+        <Alert
+          key={msg.id}
+          severity="info"
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              startIcon={<CheckCircle />}
+              onClick={() => handleAcknowledgeMessage(msg.id)}
+            >
+              Got it
+            </Button>
+          }
+          sx={{
+            mb: 2,
+            '& .MuiAlert-message': {
+              width: '100%'
+            }
+          }}
+        >
+          <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+            {msg.title}
+          </Typography>
+          <Typography variant="body2">
+            {msg.message}
+          </Typography>
+        </Alert>
+      ))}
+
+      {/* Orders Section */}
       <Paper 
         elevation={3} 
         sx={{ 
