@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage';
 import Navbar from './components/Navbar';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useState, useEffect } from 'react';
+import { getAdminSettings } from './config/airtable';
 import './App.css';
 
 // Create theme with admin and employee variants
@@ -118,7 +119,29 @@ const ProtectedRoute = ({ children, requiredRole }) => {
 
 function AppContent() {
   const [keyCount, setKeyCount] = useState(0);
+  const [adminSettings, setAdminSettings] = useState(null);
   const { login } = useAuth();
+
+  // Polling effect for admin settings
+  useEffect(() => {
+    // Initial fetch
+    const fetchAdminSettings = async () => {
+      try {
+        const settings = await getAdminSettings();
+        setAdminSettings(settings);
+      } catch (error) {
+        console.error('Error fetching admin settings:', error);
+      }
+    };
+
+    fetchAdminSettings();
+
+    // Set up polling interval
+    const intervalId = setInterval(fetchAdminSettings, 30000); // 30 seconds
+
+    // Cleanup interval on unmount
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array means this runs once on mount
 
   useEffect(() => {
     const handleKeyPress = (e) => {
@@ -147,14 +170,14 @@ function AppContent() {
     <div className="App">
       <Navbar />
       <Routes>
-        <Route path="/" element={<CustomerPage />} />
+        <Route path="/" element={<CustomerPage adminSettings={adminSettings} />} />
         <Route path="/employee-login" element={<LoginPage role="employee" />} />
         <Route path="/admin-login" element={<LoginPage role="admin" />} />
         <Route 
           path="/employee" 
           element={
             <ProtectedRoute requiredRole="employee">
-              <EmployeePage />
+              <EmployeePage adminSettings={adminSettings} />
             </ProtectedRoute>
           } 
         />
@@ -162,7 +185,7 @@ function AppContent() {
           path="/admin" 
           element={
             <ProtectedRoute requiredRole="admin">
-              <AdminPage />
+              <AdminPage adminSettings={adminSettings} />
             </ProtectedRoute>
           } 
         />
