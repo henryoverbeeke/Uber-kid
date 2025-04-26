@@ -14,9 +14,16 @@ import {
   MenuItem,
   IconButton,
   ButtonBase,
+  Switch,
+  FormControlLabel,
+  Divider,
+  InputAdornment,
+  CircularProgress,
+  Container,
+  Alert,
 } from '@mui/material';
-import { Notifications, Delete } from '@mui/icons-material';
-import { orderingTable, messageTable } from '../config/airtable';
+import { Notifications, Delete, Security, Settings, Visibility, VisibilityOff } from '@mui/icons-material';
+import { orderingTable, messageTable, adminTable, getAdminSettings, updateAdminSettings } from '../config/airtable';
 import CenteredLayout from '../components/CenteredLayout';
 
 function AdminPage() {
@@ -24,16 +31,41 @@ function AdminPage() {
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  
+  // Admin settings states
+  const [isUp, setIsUp] = useState(true);
+  const [isImpastaMode, setIsImpastaMode] = useState(false);
+  const [canOrder, setCanOrder] = useState(true);
 
   useEffect(() => {
-    fetchOrders();
-    fetchMessages();
-    const interval = setInterval(() => {
-      fetchOrders();
-      fetchMessages();
-    }, 5000);
-    return () => clearInterval(interval);
+    fetchInitialData();
   }, []);
+
+  const fetchInitialData = async () => {
+    try {
+      setLoading(true);
+      const [adminSettings, ordersData, messagesData] = await Promise.all([
+        getAdminSettings(),
+        fetchOrders(),
+        fetchMessages(),
+      ]);
+
+      console.log('Fetched admin settings:', adminSettings);
+      
+      if (adminSettings) {
+        setIsUp(adminSettings.isUp === true);
+        setIsImpastaMode(adminSettings.isImpastaMode === true);
+        setCanOrder(adminSettings.canOrder === true);
+      }
+    } catch (err) {
+      console.error('Error fetching data:', err);
+      setError('Failed to load data. Please refresh the page.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchOrders = async () => {
     try {
@@ -137,8 +169,137 @@ function AdminPage() {
     }
   };
 
+  const handleAppStatusToggle = async () => {
+    try {
+      console.log('Toggling app status from:', isUp);
+      const success = await updateAdminSettings({
+        isUp: !isUp
+      });
+      console.log('Update success:', success);
+      if (success) {
+        setIsUp(!isUp);
+      }
+    } catch (err) {
+      console.error('Error updating app status:', err);
+      setError('Failed to update app status. Please try again.');
+    }
+  };
+
+  const handleImpostaModeToggle = async () => {
+    try {
+      console.log('Toggling imposta mode from:', isImpastaMode);
+      const success = await updateAdminSettings({
+        isImpastaMode: !isImpastaMode
+      });
+      console.log('Update success:', success);
+      if (success) {
+        setIsImpastaMode(!isImpastaMode);
+      }
+    } catch (err) {
+      console.error('Error updating imposta mode:', err);
+      setError('Failed to update imposta mode. Please try again.');
+    }
+  };
+
+  const handleOrderingToggle = async () => {
+    try {
+      console.log('Toggling ordering from:', canOrder);
+      const success = await updateAdminSettings({
+        canOrder: !canOrder
+      });
+      console.log('Update success:', success);
+      if (success) {
+        setCanOrder(!canOrder);
+      }
+    } catch (err) {
+      console.error('Error updating ordering status:', err);
+      setError('Failed to update ordering status. Please try again.');
+    }
+  };
+
+  if (loading && !orders.length && !messages.length) {
+    return (
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="100vh"
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
     <CenteredLayout>
+      {/* Admin Controls Section */}
+      <Paper 
+        elevation={3} 
+        sx={{ 
+          p: { xs: 2, sm: 3, md: 4 },
+          width: '100%',
+          borderRadius: { xs: 2, sm: 3 },
+          mb: { xs: 2, sm: 3 }
+        }}
+      >
+        <Typography 
+          variant="h5" 
+          component="h2" 
+          gutterBottom
+          sx={{
+            fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
+            mb: { xs: 2, sm: 3 },
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1
+          }}
+        >
+          <Security /> Admin Controls
+        </Typography>
+
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+            {error}
+          </Alert>
+        )}
+
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {/* System Controls */}
+          <Box>
+            <Typography variant="h6" gutterBottom>System Controls</Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={isUp}
+                    onChange={handleAppStatusToggle}
+                  />
+                }
+                label={`System Status: ${isUp ? 'Online' : 'Offline'}`}
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={isImpastaMode}
+                    onChange={handleImpostaModeToggle}
+                  />
+                }
+                label={`Impasta Mode: ${isImpastaMode ? 'Active' : 'Inactive'}`}
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={canOrder}
+                    onChange={handleOrderingToggle}
+                  />
+                }
+                label={`Customer Ordering: ${canOrder ? 'Enabled' : 'Disabled'}`}
+              />
+            </Box>
+          </Box>
+        </Box>
+      </Paper>
+
       <Paper 
         elevation={3} 
         sx={{ 

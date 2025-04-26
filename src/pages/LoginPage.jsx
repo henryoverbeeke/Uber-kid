@@ -1,78 +1,89 @@
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Container, Paper, TextField, Button, Typography, Box } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
+import {
+  Container,
+  Paper,
+  TextField,
+  Button,
+  Typography,
+  Box,
+  Alert,
+} from '@mui/material';
+import { getAdminSettings } from '../config/airtable';
+import { useAuth } from '../contexts/AuthContext';
 
-const EMPLOYEE_CODE = '492412'; // Updated employee code
-const ADMIN_CODE = 'ss5932'; // Updated admin code
-
-function LoginPage({ setIsEmployee, setIsAdmin }) {
-  const [code, setCode] = useState('');
-  const [error, setError] = useState('');
+function LoginPage({ role }) {
   const navigate = useNavigate();
-  const location = useLocation();
+  const { login } = useAuth();
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleEmployeeLogin = () => {
-    if (code === EMPLOYEE_CODE) {
-      setIsEmployee(true);
-      navigate('/employee');
-    } else {
-      setError('Invalid employee code');
-    }
-  };
-
-  const handleAdminLogin = () => {
-    if (code === ADMIN_CODE) {
-      setIsAdmin(true);
-      navigate('/admin');
-    } else {
-      setError('Invalid admin code');
-    }
-  };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (location.pathname === '/admin') {
-      handleAdminLogin();
-    } else {
-      handleEmployeeLogin();
+    setLoading(true);
+    setError('');
+
+    try {
+      const settings = await getAdminSettings();
+      if (!settings) {
+        setError('Unable to verify password. Please try again.');
+        return;
+      }
+
+      const correctPassword = role === 'admin' 
+        ? settings.adminPassword 
+        : settings.employeePassword;
+
+      if (password === correctPassword) {
+        login(role);
+        navigate(role === 'admin' ? '/admin' : '/employee');
+      } else {
+        setError('Incorrect password');
+      }
+    } catch (error) {
+      console.error('Error verifying password:', error);
+      setError('An error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <Container maxWidth="sm" sx={{ mt: 4 }}>
+    <Container maxWidth="sm" sx={{ mt: 8 }}>
       <Paper elevation={3} sx={{ p: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom align="center">
-          Staff Login
+          {role === 'admin' ? 'Admin Login' : 'Employee Login'}
         </Typography>
-        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
+        
+        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+          
           <TextField
             fullWidth
             type="password"
-            label="Enter Code"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            error={!!error}
-            helperText={error}
+            label="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            disabled={loading}
             sx={{ mb: 2 }}
           />
-          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleEmployeeLogin}
-              size="large"
-            >
-              Employee Login
-            </Button>
-            <Button
-              variant="contained"
-              color="secondary"
-              onClick={handleAdminLogin}
-              size="large"
-            >
-              Admin Login
-            </Button>
-          </Box>
+          
+          <Button
+            type="submit"
+            variant="contained"
+            color="primary"
+            fullWidth
+            size="large"
+            disabled={loading}
+          >
+            {loading ? 'Verifying...' : 'Login'}
+          </Button>
         </Box>
       </Paper>
     </Container>
