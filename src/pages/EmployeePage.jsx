@@ -14,14 +14,25 @@ import {
   ButtonBase,
   Alert,
   Button,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
-import { Notifications, Delete, CheckCircle } from '@mui/icons-material';
+import { Notifications, Delete, CheckCircle, Check, Clear, Message } from '@mui/icons-material';
 import { orderingTable, messageTable } from '../config/airtable';
 import CenteredLayout from '../components/CenteredLayout';
+
+// Create Audio object for beep sound
+const beepSound = new Audio('https://www.soundjay.com/button/beep-07.wav');
 
 function EmployeePage() {
   const [orders, setOrders] = useState([]);
   const [messages, setMessages] = useState([]);
+  const [messageDialogOpen, setMessageDialogOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [manualMessage, setManualMessage] = useState('');
 
   useEffect(() => {
     const initializeData = async () => {
@@ -29,7 +40,7 @@ function EmployeePage() {
     };
 
     initializeData();
-    const interval = setInterval(initializeData, 5000);
+    const interval = setInterval(initializeData, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -40,6 +51,15 @@ function EmployeePage() {
         sort: [{ field: 'foodName', direction: 'desc' }]
       }).firstPage();
       
+      // Check for status changes and play beep
+      if (orders.length > 0) {
+        records.forEach(newOrder => {
+          const oldOrder = orders.find(o => o.id === newOrder.id);
+          if (oldOrder && oldOrder.foodStatus !== newOrder.fields.foodStatus) {
+            beepSound.play().catch(err => console.error('Error playing sound:', err));
+          }
+        });
+      }
       setOrders(records.map(record => ({
         id: record.id,
         foodName: record.fields.foodName,
@@ -73,6 +93,7 @@ function EmployeePage() {
       await orderingTable.update(orderId, {
         foodStatus: newStatus
       });
+      beepSound.play().catch(err => console.error('Error playing sound:', err));
       fetchOrders();
     } catch (error) {
       console.error('Error updating order status:', error);
@@ -81,12 +102,16 @@ function EmployeePage() {
 
   const handleMarkDelivered = async (orderId) => {
     try {
-      await orderingTable.update(orderId, {
-        delivered: true
-      });
-      fetchOrders();
+      // Delete the record from Airtable
+      await orderingTable.destroy(orderId);
+      
+      // Play beep sound for confirmation
+      beepSound.play().catch(err => console.error('Error playing sound:', err));
+      
+      // Update local state by removing the deleted order
+      setOrders(orders.filter(order => order.id !== orderId));
     } catch (error) {
-      console.error('Error marking order as delivered:', error);
+      console.error('Error deleting order:', error);
     }
   };
 
@@ -114,6 +139,39 @@ function EmployeePage() {
       await fetchMessages();
     } catch (error) {
       console.error('Error acknowledging message:', error);
+    }
+  };
+
+  const handleMessageClick = (order) => {
+    setSelectedOrder(order);
+    setMessageDialogOpen(true);
+  };
+
+  const handleSendMessage = async () => {
+    if (!selectedOrder || !manualMessage.trim()) return;
+
+    try {
+      await orderingTable.update(selectedOrder.id, { 
+        employeeMessage: manualMessage,
+        messageTimestamp: new Date().toISOString()
+      });
+      
+      // Play beep sound for confirmation
+      beepSound.play().catch(err => console.error('Error playing sound:', err));
+      
+      // Update local state
+      setOrders(orders.map(order => 
+        order.id === selectedOrder.id 
+          ? { ...order, foodStatus: 'completed', employeeMessage: manualMessage, messageTimestamp: new Date().toISOString() } 
+          : order
+      ));
+      
+      // Reset and close dialog
+      setManualMessage('');
+      setMessageDialogOpen(false);
+      setSelectedOrder(null);
+    } catch (error) {
+      console.error('Error sending message:', error);
     }
   };
 
@@ -302,11 +360,50 @@ function EmployeePage() {
                 >
                   <Delete />
                 </IconButton>
+
+                <IconButton
+                  onClick={() => handleMessageClick(order)}
+                  color="primary"
+                  sx={{ 
+                    width: { xs: 48, sm: 40 },
+                    height: { xs: 48, sm: 40 },
+                    '& .MuiSvgIcon-root': {
+                      fontSize: { xs: '1.5rem', sm: '1.25rem' }
+                    }
+                  }}
+                >
+                  <Message />
+                </IconButton>
               </Box>
             </ListItem>
           ))}
         </List>
       </Paper>
+
+      {/* Message Dialog */}
+      <Dialog open={messageDialogOpen} onClose={() => setMessageDialogOpen(false)}>
+        <DialogTitle>Send Message</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Message"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={manualMessage}
+            onChange={(e) => setManualMessage(e.target.value)}
+            multiline
+            rows={3}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setMessageDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleSendMessage} color="primary">
+            Send
+          </Button>
+        </DialogActions>
+      </Dialog>
     </CenteredLayout>
   );
 }
