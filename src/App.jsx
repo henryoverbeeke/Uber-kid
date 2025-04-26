@@ -10,13 +10,89 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useState, useEffect } from 'react';
 import './App.css';
 
+// Create theme with admin and employee variants
 const theme = createTheme({
   palette: {
+    mode: 'dark',
     primary: {
-      main: '#9c27b0', // Purple
+      main: '#1976d2', // Blue for employee/home
     },
     secondary: {
-      main: '#f44336', // Red
+      main: '#d32f2f', // Red for admin
+    },
+    error: {
+      main: '#d32f2f',
+      dark: '#c62828',
+    },
+    info: {
+      main: '#1976d2',
+      dark: '#1565c0',
+    },
+    background: {
+      default: '#000000',
+      paper: '#121212',
+      admin: '#d32f2f',
+      employee: '#1976d2',
+    },
+    text: {
+      primary: '#ffffff',
+      secondary: 'rgba(255, 255, 255, 0.7)',
+    }
+  },
+  components: {
+    MuiButton: {
+      variants: [
+        {
+          props: { variant: 'admin' },
+          style: {
+            backgroundColor: '#d32f2f',
+            color: '#ffffff',
+            '&:hover': {
+              backgroundColor: '#c62828',
+            },
+          },
+        },
+        {
+          props: { variant: 'employee' },
+          style: {
+            backgroundColor: '#1976d2',
+            color: '#ffffff',
+            '&:hover': {
+              backgroundColor: '#1565c0',
+            },
+          },
+        },
+      ],
+      styleOverrides: {
+        root: ({ theme, ownerState }) => ({
+          ...(ownerState.color === 'error' && {
+            backgroundColor: theme.palette.error.main,
+            '&:hover': {
+              backgroundColor: theme.palette.error.dark,
+            },
+          }),
+          ...(ownerState.color === 'info' && {
+            backgroundColor: theme.palette.info.main,
+            '&:hover': {
+              backgroundColor: theme.palette.info.dark,
+            },
+          }),
+        }),
+      },
+    },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          backgroundColor: '#121212',
+        },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          backgroundColor: '#121212',
+        },
+      },
     },
   },
 });
