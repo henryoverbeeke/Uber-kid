@@ -170,7 +170,7 @@ function CustomerPage() {
 
   if (adminSettings?.isImpastaMode) {
     return (
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <CenteredLayout>
         <Typography 
           variant="h3" 
           component="h1" 
@@ -215,12 +215,12 @@ function CustomerPage() {
             </Grid>
           ))}
         </Grid>
-      </Container>
+      </CenteredLayout>
     );
   }
 
   return (
-    <Container maxWidth="md" sx={{ mt: 4 }}>
+    <CenteredLayout>
       <Dialog open={isRinging} onClose={handleImComing}>
         <DialogTitle>Your order is ready!</DialogTitle>
         <DialogContent>
@@ -233,7 +233,7 @@ function CustomerPage() {
         </DialogActions>
       </Dialog>
 
-      <Paper elevation={3} sx={{ p: 4, mb: 4 }}>
+      <Paper elevation={3} sx={{ p: 4, mb: 4, width: '100%' }}>
         <Typography variant="h4" component="h1" gutterBottom align="center">
           Place Your Order
         </Typography>
@@ -281,7 +281,7 @@ function CustomerPage() {
         </Box>
       </Paper>
 
-      <Paper elevation={3} sx={{ p: 4 }}>
+      <Paper elevation={3} sx={{ p: 4, width: '100%' }}>
         <Typography variant="h5" component="h2" gutterBottom>
           Your Orders
         </Typography>
@@ -305,7 +305,7 @@ function CustomerPage() {
           ))}
         </List>
       </Paper>
-    </Container>
+    </CenteredLayout>
   );
 }
 

@@ -11,6 +11,7 @@ import {
 } from '@mui/material';
 import { getAdminSettings } from '../config/airtable';
 import { useAuth } from '../contexts/AuthContext';
+import CenteredLayout from '../components/CenteredLayout';
 
 function LoginPage({ role }) {
   const navigate = useNavigate();
@@ -50,8 +51,8 @@ function LoginPage({ role }) {
   };
 
   return (
-    <Container maxWidth="sm" sx={{ mt: 8 }}>
-      <Paper elevation={3} sx={{ p: 4 }}>
+    <CenteredLayout>
+      <Paper elevation={3} sx={{ p: 4, width: '100%', maxWidth: 'sm' }}>
         <Typography variant="h4" component="h1" gutterBottom align="center">
           {role === 'admin' ? 'Admin Login' : 'Employee Login'}
         </Typography>
@@ -86,7 +87,7 @@ function LoginPage({ role }) {
           </Button>
         </Box>
       </Paper>
-    </Container>
+    </CenteredLayout>
   );
 }
 
