@@ -21,7 +21,7 @@ import {
   DialogActions,
 } from '@mui/material';
 import { Notifications, Delete, CheckCircle, Check, Clear, Message } from '@mui/icons-material';
-import { orderingTable, messageTable } from '../config/airtable';
+import { orderingTable, messageTable, beepTable } from '../config/airtable';
 import CenteredLayout from '../components/CenteredLayout';
 
 // Create Audio object for beep sound
@@ -33,14 +33,15 @@ function EmployeePage() {
   const [messageDialogOpen, setMessageDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [manualMessage, setManualMessage] = useState('');
+  const [beeps, setBeeps] = useState([]);
 
   useEffect(() => {
     const initializeData = async () => {
-      await Promise.all([fetchOrders(), fetchMessages()]);
+      await Promise.all([fetchOrders(), fetchMessages(), fetchBeeps()]);
     };
 
     initializeData();
-    const interval = setInterval(initializeData, 60000);
+    const interval = setInterval(initializeData, 5000); // Check more frequently for beeps
     return () => clearInterval(interval);
   }, []);
 
@@ -88,6 +89,30 @@ function EmployeePage() {
     }
   };
 
+  const fetchBeeps = async () => {
+    try {
+      const records = await beepTable.select({
+        filterByFormula: '{isCalling} = 1',
+        sort: [{ field: 'createdTime', direction: 'desc' }]
+      }).firstPage();
+
+      const newBeeps = records.map(record => ({
+        id: record.id,
+        whoCall: record.fields.whoCall,
+        timestamp: record.fields.createdTime
+      }));
+
+      // Check for new beeps and play sound
+      if (newBeeps.length > beeps.length) {
+        beepSound.play().catch(err => console.error('Error playing sound:', err));
+      }
+
+      setBeeps(newBeeps);
+    } catch (error) {
+      console.error('Error fetching beeps:', error);
+    }
+  };
+
   const handleStatusChange = async (orderId, newStatus) => {
     try {
       await orderingTable.update(orderId, {
@@ -100,7 +125,7 @@ function EmployeePage() {
     }
   };
 
-  const handleMarkDelivered = async (orderId) => {
+  const handleDeleteOrder = async (orderId) => {
     try {
       // Delete the record from Airtable
       await orderingTable.destroy(orderId);
@@ -108,7 +133,7 @@ function EmployeePage() {
       // Play beep sound for confirmation
       beepSound.play().catch(err => console.error('Error playing sound:', err));
       
-      // Update local state by removing the deleted order
+      // Update local state to remove the deleted order
       setOrders(orders.filter(order => order.id !== orderId));
     } catch (error) {
       console.error('Error deleting order:', error);
@@ -139,6 +164,17 @@ function EmployeePage() {
       await fetchMessages();
     } catch (error) {
       console.error('Error acknowledging message:', error);
+    }
+  };
+
+  const handleAcknowledgeBeep = async (beepId) => {
+    try {
+      await beepTable.update(beepId, {
+        isCalling: false
+      });
+      await fetchBeeps(); // Refresh beeps immediately
+    } catch (error) {
+      console.error('Error acknowledging beep:', error);
     }
   };
 
@@ -177,6 +213,31 @@ function EmployeePage() {
 
   return (
     <CenteredLayout>
+      {/* Beep Alerts Section */}
+      {beeps.map((beep) => (
+        <Alert
+          key={beep.id}
+          severity="warning"
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => handleAcknowledgeBeep(beep.id)}
+            >
+              Acknowledge
+            </Button>
+          }
+          sx={{ mb: 2 }}
+        >
+          <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+            Customer Needs Assistance!
+          </Typography>
+          <Typography variant="body2">
+            {beep.whoCall} is calling for help
+          </Typography>
+        </Alert>
+      ))}
+
       {/* Pinned Messages Section */}
       {messages.filter(msg => !msg.acknowledged).map((msg) => (
         <Alert
@@ -348,7 +409,7 @@ function EmployeePage() {
                 </IconButton>
 
                 <IconButton
-                  onClick={() => handleMarkDelivered(order.id)}
+                  onClick={() => handleDeleteOrder(order.id)}
                   color="error"
                   sx={{ 
                     width: { xs: 48, sm: 40 },
