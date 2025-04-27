@@ -1,65 +1,53 @@
 import Airtable from 'airtable';
 
-const base = new Airtable({
-  apiKey: import.meta.env.VITE_AIRTABLE_API_KEY
-}).base(import.meta.env.VITE_AIRTABLE_BASE_ID);
+const base = new Airtable({ apiKey: import.meta.env.VITE_AIRTABLE_API_KEY }).base(import.meta.env.VITE_AIRTABLE_BASE_ID);
 
-export const orderingTable = base('ordering');
-export const messageTable = base('message');
-export const adminTable = base('Admin');
+const orderingTable = base('ordering');
+const messageTable = base('message');
+const adminTable = base('Admin');
+const beepTable = base('beep');
 
-// Helper function to get admin settings
-export async function getAdminSettings() {
+const getAdminSettings = async () => {
   try {
-    const records = await adminTable.select({
-      maxRecords: 1
-    }).firstPage();
-
-    console.log('Fetched records:', records);
-
-    if (records && records.length > 0) {
-      const fields = records[0].fields;
-      console.log('Current settings:', fields);
-      return fields;
-    }
-
-    // Create default settings if no record exists
-    const defaultSettings = {
-      isUp: true,
-      isImpastaMode: false,
-      canOrder: true
-    };
-
-    const newRecord = await adminTable.create([{ fields: defaultSettings }]);
-    console.log('Created new settings:', newRecord);
-    return defaultSettings;
+    const records = await adminTable
+      .select({
+        maxRecords: 1,
+        sort: [{ field: 'createdTime', direction: 'desc' }]
+      })
+      .firstPage();
+    return records[0]?.fields || null;
   } catch (error) {
-    console.error('Error in getAdminSettings:', error);
-    throw error;
+    console.error('Error fetching admin settings:', error);
+    return null;
   }
-}
+};
 
-// Helper function to update admin settings
-export async function updateAdminSettings(updates) {
+const updateAdminSettings = async (fields) => {
   try {
-    console.log('Updating with:', updates);
-    const records = await adminTable.select({
-      maxRecords: 1
-    }).firstPage();
-
-    if (records && records.length > 0) {
-      const record = records[0];
-      console.log('Found existing record:', record.id);
-      await adminTable.update(record.id, updates);
-      console.log('Updated record successfully');
-      return true;
+    const records = await adminTable
+      .select({
+        maxRecords: 1,
+        sort: [{ field: 'createdTime', direction: 'desc' }]
+      })
+      .firstPage();
+    
+    if (records.length > 0) {
+      await adminTable.update(records[0].id, fields);
     } else {
-      console.log('No existing record, creating new');
-      await adminTable.create([{ fields: updates }]);
-      return true;
+      await adminTable.create([{ fields }]);
     }
   } catch (error) {
-    console.error('Error in updateAdminSettings:', error);
+    console.error('Error updating admin settings:', error);
     throw error;
   }
-} 
+};
+
+export {
+  base,
+  orderingTable,
+  messageTable,
+  adminTable,
+  beepTable,
+  getAdminSettings,
+  updateAdminSettings
+}; 

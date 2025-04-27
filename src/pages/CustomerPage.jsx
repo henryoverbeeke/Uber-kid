@@ -18,7 +18,8 @@ import {
   Card,
   CardMedia,
 } from '@mui/material';
-import { orderingTable, messageTable, getAdminSettings } from '../config/airtable';
+import { NotificationsActive } from '@mui/icons-material';
+import { orderingTable, messageTable, getAdminSettings, beepTable } from '../config/airtable';
 import useSound from 'use-sound';
 import CenteredLayout from '../components/CenteredLayout';
 
@@ -45,6 +46,8 @@ function CustomerPage() {
   const [orderStatus, setOrderStatus] = useState(null);
   const [adminSettings, setAdminSettings] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isBeepDialogOpen, setIsBeepDialogOpen] = useState(false);
+  const [callerName, setCallerName] = useState('');
 
   useEffect(() => {
     fetchOrders();
@@ -150,6 +153,32 @@ function CustomerPage() {
     }
   };
 
+  const handleBeepClick = () => {
+    setIsBeepDialogOpen(true);
+  };
+
+  const handleBeepSubmit = async () => {
+    if (!callerName.trim()) return;
+
+    try {
+      // Create a new beep record
+      await beepTable.create([
+        {
+          fields: {
+            whoCall: callerName,
+            isCalling: true
+          }
+        }
+      ]);
+
+      // Reset and close dialog
+      setCallerName('');
+      setIsBeepDialogOpen(false);
+    } catch (error) {
+      console.error('Error creating beep:', error);
+    }
+  };
+
   if (loading) {
     return (
       <CenteredLayout>
@@ -221,6 +250,32 @@ function CustomerPage() {
 
   return (
     <CenteredLayout>
+      <Box sx={{ 
+        position: 'fixed',
+        bottom: '2rem',
+        right: '2rem',
+        zIndex: 1000 
+      }}>
+        <Button
+          variant="contained"
+          color="primary"
+          size="large"
+          startIcon={<NotificationsActive />}
+          onClick={handleBeepClick}
+          sx={{
+            borderRadius: '50%',
+            width: '64px',
+            height: '64px',
+            minWidth: '64px',
+            '& .MuiButton-startIcon': {
+              margin: 0
+            }
+          }}
+        >
+          {/* Icon only button */}
+        </Button>
+      </Box>
+
       <Dialog open={isRinging} onClose={handleImComing}>
         <DialogTitle>Your order is ready!</DialogTitle>
         <DialogContent>
@@ -305,6 +360,29 @@ function CustomerPage() {
           ))}
         </List>
       </Paper>
+
+      {/* Name Input Dialog */}
+      <Dialog open={isBeepDialogOpen} onClose={() => setIsBeepDialogOpen(false)}>
+        <DialogTitle>Call for Assistance</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Your Name"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={callerName}
+            onChange={(e) => setCallerName(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIsBeepDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleBeepSubmit} color="primary">
+            Call
+          </Button>
+        </DialogActions>
+      </Dialog>
     </CenteredLayout>
   );
 }
