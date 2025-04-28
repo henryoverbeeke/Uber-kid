@@ -20,8 +20,8 @@ import {
   DialogContent,
   DialogActions,
 } from '@mui/material';
-import { Notifications, Delete, CheckCircle, Check, Clear, Message } from '@mui/icons-material';
-import { orderingTable, messageTable, beepTable } from '../config/airtable';
+import { Notifications, Delete, CheckCircle, Check, Clear, Message, CloudOff } from '@mui/icons-material';
+import { orderingTable, messageTable, beepTable, isSystemOnline } from '../config/airtable';
 import CenteredLayout from '../components/CenteredLayout';
 
 // Create Audio object for beep sound
@@ -34,14 +34,20 @@ function EmployeePage() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [manualMessage, setManualMessage] = useState('');
   const [beeps, setBeeps] = useState([]);
+  const [isOffline, setIsOffline] = useState(!isSystemOnline());
 
   useEffect(() => {
     const initializeData = async () => {
+      if (!isSystemOnline()) {
+        setIsOffline(true);
+        return;
+      }
+      setIsOffline(false);
       await Promise.all([fetchOrders(), fetchMessages(), fetchBeeps()]);
     };
 
     initializeData();
-    const interval = setInterval(initializeData, 5000); // Check more frequently for beeps
+    const interval = setInterval(initializeData, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -213,6 +219,24 @@ function EmployeePage() {
 
   return (
     <CenteredLayout>
+      {isOffline && (
+        <Alert 
+          severity="warning" 
+          icon={<CloudOff />}
+          sx={{ 
+            width: '100%', 
+            mb: 2,
+            display: 'flex',
+            alignItems: 'center',
+            '& .MuiAlert-icon': {
+              fontSize: '2rem'
+            }
+          }}
+        >
+          System is currently offline. Updates are paused.
+        </Alert>
+      )}
+
       {/* Beep Alerts Section */}
       {beeps.map((beep) => (
         <Alert

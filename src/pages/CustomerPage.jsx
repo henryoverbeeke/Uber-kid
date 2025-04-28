@@ -18,8 +18,8 @@ import {
   Card,
   CardMedia,
 } from '@mui/material';
-import { NotificationsActive } from '@mui/icons-material';
-import { orderingTable, messageTable, getAdminSettings, beepTable } from '../config/airtable';
+import { NotificationsActive, CloudOff } from '@mui/icons-material';
+import { orderingTable, messageTable, getAdminSettings, beepTable, isSystemOnline } from '../config/airtable';
 import useSound from 'use-sound';
 import CenteredLayout from '../components/CenteredLayout';
 
@@ -48,16 +48,20 @@ function CustomerPage() {
   const [loading, setLoading] = useState(true);
   const [isBeepDialogOpen, setIsBeepDialogOpen] = useState(false);
   const [callerName, setCallerName] = useState('');
+  const [isOffline, setIsOffline] = useState(!isSystemOnline());
 
   useEffect(() => {
-    fetchOrders();
-    checkRinging();
-    checkAdminSettings();
-    const interval = setInterval(() => {
-      fetchOrders();
-      checkRinging();
-      checkAdminSettings();
-    }, 5000);
+    const initializeData = async () => {
+      if (!isSystemOnline()) {
+        setIsOffline(true);
+        return;
+      }
+      setIsOffline(false);
+      await Promise.all([fetchOrders(), checkRinging(), checkAdminSettings()]);
+    };
+
+    initializeData();
+    const interval = setInterval(initializeData, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -187,10 +191,22 @@ function CustomerPage() {
     );
   }
 
-  if (!adminSettings?.isUp) {
+  if (isOffline || !adminSettings?.isUp) {
     return (
       <CenteredLayout>
-        <Alert severity="error" sx={{ width: '100%', mb: 2 }}>
+        <Alert 
+          severity="error" 
+          icon={<CloudOff />}
+          sx={{ 
+            width: '100%', 
+            mb: 2,
+            display: 'flex',
+            alignItems: 'center',
+            '& .MuiAlert-icon': {
+              fontSize: '2rem'
+            }
+          }}
+        >
           System is currently offline. Please try again later.
         </Alert>
       </CenteredLayout>
